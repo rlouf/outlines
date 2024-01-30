@@ -69,7 +69,9 @@ class RegexLogitsProcessor:
                 self.fsm_state[seq_id], last_token
             )
 
-        allowed_tokens = self.fsm.allowed_token_ids(self.fsm_state[seq_id])
+        allowed_tokens = self.fsm.get_next_instruction(
+            self.fsm_state[seq_id]
+        ).allowed_token_ids
 
         mask = torch.full((scores.shape[-1],), -math.inf, device=scores.device)
         mask[allowed_tokens] = 0

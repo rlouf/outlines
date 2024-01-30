@@ -1,6 +1,6 @@
 import pytest
 
-from outlines.fsm.fsm import CFGFSM, RegexFSM, StopAtEosFSM
+from outlines.fsm.fsm import CFGFSM, Generate, RegexFSM, StopAtEosFSM
 
 
 def test_stop_at_eos():
@@ -10,8 +10,14 @@ def test_stop_at_eos():
 
     fsm = StopAtEosFSM(MockTokenizer())
 
-    assert fsm.allowed_token_ids(fsm.first_state) == [1, 2]
-    assert fsm.allowed_token_ids(fsm.final_state) == [2]
+    next_instruction = fsm.get_next_instruction(fsm.first_state)
+    assert isinstance(next_instruction, Generate)
+    assert next_instruction.allowed_token_ids == [1, 2]
+
+    next_instruction = fsm.get_next_instruction(fsm.final_state)
+    assert isinstance(next_instruction, Generate)
+    assert next_instruction.allowed_token_ids == [2]
+
     assert fsm.next_state(fsm.first_state, 2) == fsm.final_state
     assert fsm.next_state(fsm.first_state, 1) == fsm.first_state
     assert fsm.is_final_state(fsm.first_state) is False
@@ -47,7 +53,10 @@ def test_regex():
     fsm = RegexFSM(regex_str, tokenizer)
 
     assert fsm.states_to_token_maps == {0: {1: 1}}
-    assert fsm.allowed_token_ids(state=0) == [1]
+
+    next_instruction = fsm.get_next_instruction(0)
+    assert next_instruction.allowed_token_ids == [1]
+
     assert fsm.next_state(state=0, token_id=1) == 1
     assert fsm.next_state(state=0, token_id=tokenizer.eos_token_id) == fsm.final_state
 
@@ -79,27 +88,31 @@ def test_cfg():
     tokenizer = MockTokenizer()
     fsm = CFGFSM(cfg_str, tokenizer)
 
-    assert set(fsm.allowed_token_ids(state=fsm.first_state)) == {1, 3, 5}
+    assert set(fsm.get_next_instruction(state=fsm.first_state).allowed_token_ids) == {
+        1,
+        3,
+        5,
+    }
     state = fsm.next_state(state=fsm.first_state, token_id=1)
     assert fsm.generation == "{"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {1, 2, 3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {1, 2, 3}
     state = fsm.next_state(state=state, token_id=3)
     assert fsm.generation == "{["
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {1, 3, 4}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {1, 3, 4}
     state = fsm.next_state(state=state, token_id=4)
     assert fsm.generation == "{[]"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {2}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {2}
     state = fsm.next_state(state=state, token_id=2)
     assert fsm.generation == "{[]}"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {5}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {5}
     state = fsm.next_state(state=state, token_id=5)
     assert fsm.generation == "{[]}"
     assert fsm.is_final_state(state)
@@ -130,24 +143,24 @@ def test_cfg_early_termination():
     tokenizer = MockTokenizer()
     fsm = CFGFSM(cfg_str, tokenizer)
 
-    assert set(fsm.allowed_token_ids(state=fsm.first_state)) == {1}
+    assert set(fsm.get_next_instruction(state=fsm.first_state).allowed_token_ids) == {1}
     state = fsm.next_state(state=fsm.first_state, token_id=1)
     assert fsm.generation == "("
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {1, 2}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {1, 2}
     state = fsm.next_state(state=state, token_id=2)
     assert fsm.generation == "()"
     assert not fsm.is_final_state(state)
 
     # possible to continue or terminate
-    assert set(fsm.allowed_token_ids(state=state)) == {1, 3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {1, 3}
     state = fsm.next_state(state=state, token_id=3)  # feed eos
     assert fsm.generation == "()"
     assert fsm.is_final_state(state)
 
     # once eos generated, can only terminate
-    assert set(fsm.allowed_token_ids(state=state)) == {3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {3}
 
 
 def test_cfg_multitoken_terminal():
@@ -174,19 +187,22 @@ def test_cfg_multitoken_terminal():
     tokenizer = MockTokenizer()
     fsm = CFGFSM(cfg_str, tokenizer)
 
-    assert set(fsm.allowed_token_ids(state=fsm.first_state)) == {1, 2}
+    assert set(fsm.get_next_instruction(state=fsm.first_state).allowed_token_ids) == {
+        1,
+        2,
+    }
     assert fsm.reset_state  # starting new regex
     state = fsm.next_state(state=fsm.first_state, token_id=1)
     assert fsm.generation == "a"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {1}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {1}
     assert not fsm.reset_state  # continuing current regex
     state = fsm.next_state(state=state, token_id=1)
     assert fsm.generation == "aa"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {3}
     assert not fsm.reset_state  # completing current regex
     state = fsm.next_state(state=state, token_id=3)
     assert fsm.generation == "aa"
@@ -217,27 +233,30 @@ def test_cfg_allow_both_extend_and_shift_terminal():
     tokenizer = MockTokenizer()
     fsm = CFGFSM(cfg_str, tokenizer)
 
-    assert set(fsm.allowed_token_ids(state=fsm.first_state)) == {1, 3}
+    assert set(fsm.get_next_instruction(state=fsm.first_state).allowed_token_ids) == {
+        1,
+        3,
+    }
     state = fsm.next_state(state=fsm.first_state, token_id=1)
     assert fsm.generation == "("
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {1, 3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {1, 3}
     state = fsm.next_state(state=state, token_id=3)
     assert fsm.generation == "(a"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {2, 3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {2, 3}
     state = fsm.next_state(state=state, token_id=3)
     assert fsm.generation == "(aa"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {2, 3}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {2, 3}
     state = fsm.next_state(state=state, token_id=2)
     assert fsm.generation == "(aa)"
     assert not fsm.is_final_state(state)
 
-    assert set(fsm.allowed_token_ids(state=state)) == {4}
+    assert set(fsm.get_next_instruction(state=state).allowed_token_ids) == {4}
     state = fsm.next_state(state=state, token_id=4)
     assert fsm.generation == "(aa)"
     assert fsm.is_final_state(state)

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, List, NewType, Protocol, Tuple
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, NewType, Protocol, Tuple, Union
 
 import interegular
 from lark import Lark
@@ -14,6 +15,19 @@ if TYPE_CHECKING:
 FSMState = NewType("FSMState", int)
 
 
+@dataclass(frozen=True)
+class Write:
+    token_id: int
+
+
+@dataclass(frozen=True)
+class Generate:
+    allowed_token_ids: List[int]
+
+
+Instruction = Union[Write, Generate]
+
+
 class FSM(Protocol):
     first_state: FSMState = FSMState(0)
     final_state: FSMState = FSMState(-1)
@@ -22,7 +36,7 @@ class FSM(Protocol):
         """Determine whether the current state of the FSM is a final state."""
         return state == self.final_state
 
-    def allowed_token_ids(self, state: FSMState) -> List[int]:
+    def get_next_instruction(self, state: FSMState) -> Instruction:
         ...
 
     def next_state(self, state: FSMState, token_id: int) -> FSMState:
@@ -39,7 +53,7 @@ class StopAtEosFSM(FSM):
         self.eos_token_id = tokenizer.eos_token_id
         self.vocabulary = tokenizer.vocabulary.values()
 
-    def allowed_token_ids(self, state: FSMState) -> List[int]:
+    def get_next_instruction(self, state: FSMState) -> Generate:
         """Generate a list of allowed tokens for the next step.
 
         When in the initial state we allow every token to be generated.
@@ -56,8 +70,8 @@ class StopAtEosFSM(FSM):
 
         """
         if self.is_final_state(state):
-            return [self.eos_token_id]
-        return list(self.vocabulary)
+            return Generate([self.eos_token_id])
+        return Generate(list(self.vocabulary))
 
     def next_state(self, state: FSMState, token_id: int) -> FSMState:
         """Update the state of the FSM.
@@ -124,7 +138,7 @@ class RegexFSM(FSM):
         self.vocabulary = tokenizer.vocabulary.values()
         self.eos_token_id = tokenizer.eos_token_id
 
-    def allowed_token_ids(self, state: FSMState) -> List[int]:
+    def get_next_instruction(self, state: FSMState) -> Generate:
         """Generate a list of allowed tokens for the next step.
 
         The initialization of the FSM builds an index which maps FSM states to a
@@ -150,9 +164,9 @@ class RegexFSM(FSM):
         next_tokens_to_end_states = self.states_to_token_maps.get(state)
 
         if next_tokens_to_end_states is None:
-            return [self.eos_token_id]
+            return Generate([self.eos_token_id])
         else:
-            return list(next_tokens_to_end_states.keys())
+            return Generate(list(next_tokens_to_end_states.keys()))
 
     def next_state(self, state: FSMState, token_id: int) -> FSMState:
         """Update the state of the FSM.
@@ -218,7 +232,7 @@ class CFGFSM(FSM):
         self.proposal_last: List[int] = []
         self.regex_fsm_last: RegexFSM
 
-    def allowed_token_ids(self, state: FSMState) -> List[int]:
+    def get_next_instruction(self, state: FSMState) -> Generate:
         """Generate a list of allowed tokens for the next step.
 
         Upon initialization, the CFG incremental parser is used to determine the
@@ -251,17 +265,17 @@ class CFGFSM(FSM):
 
         """
         if self.is_final_state(state):
-            return [self.tokenizer.eos_token_id]
+            return Generate([self.tokenizer.eos_token_id])
 
-        proposal = []
+        proposal: List[int] = []
         if self.generation != "":
             if self.check_last:
                 proposer = self.regex_fsm_last
             else:
                 proposer = self.regex_fsm
-            proposal += proposer.allowed_token_ids(state)
+            proposal += proposer.get_next_instruction(state).allowed_token_ids
             if self.tokenizer.eos_token_id not in proposal:
-                return proposal
+                return Generate(proposal)
             self.check_last = False
             proposal = [x for x in proposal if x != self.tokenizer.eos_token_id]
             if len(proposal) > 0:
@@ -276,7 +290,7 @@ class CFGFSM(FSM):
         if self.terminal_regexps["$END"] in options:
             options.remove(self.terminal_regexps["$END"])
             if len(options) == 0:
-                return [self.tokenizer.eos_token_id]
+                return Generate([self.tokenizer.eos_token_id])
             self.allow_eos = True
             options.add("")
             assert len(options) > 1
@@ -285,13 +299,15 @@ class CFGFSM(FSM):
         self.regex_fsm = RegexFSM(regex_string, self.tokenizer)
         self.reset_state = True
 
-        proposal += self.regex_fsm.allowed_token_ids(self.first_state)
+        proposal += self.regex_fsm.get_next_instruction(
+            self.first_state
+        ).allowed_token_ids
         if self.allow_eos:
             self.allow_eos = False
         else:
             proposal = [x for x in proposal if x != self.tokenizer.eos_token_id]
             assert len(proposal) > 0
-        return proposal
+        return Generate(proposal)
 
     def next_state(self, state: FSMState, token_id: int) -> FSMState:
         """Update the state of the FSM.

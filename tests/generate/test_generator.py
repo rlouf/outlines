@@ -4,12 +4,12 @@ from typing import Generator
 import pytest
 import torch
 
-from outlines.fsm.fsm import FSMState
+from outlines.fsm.fsm import FSMState, Generate
 from outlines.generate.api import SequenceGenerator
 from outlines.generate.generator import (
     bias_logits,
     expand_attention_masks,
-    get_allowed_tokens,
+    get_allowed_token_ids,
     get_next_fsm_states,
     init_generator_state,
     is_generation_finished,
@@ -26,8 +26,8 @@ def test_sequence_generator_class():
         def next_state(self, state, next_token_ids):
             return 4
 
-        def allowed_token_ids(self, *_):
-            return [4]
+        def get_next_instruction(self, *_):
+            return Generate([4])
 
         def is_final_state(self, _):
             return True
@@ -79,8 +79,8 @@ def test_init_sequence_generator():
         def next_state(self, state, next_token_ids):
             return 0
 
-        def allowed_token_ids(self, _):
-            return []
+        def get_next_instruction(self, _):
+            return Generate([])
 
         def is_final_state(self, _):
             return True
@@ -114,8 +114,8 @@ def test_sequence_generator_1d_single_iteration():
         def next_state(self, state, next_token_ids):
             return 0
 
-        def allowed_token_ids(self, _):
-            return [0, 1, 2, 3]
+        def get_next_instruction(self, _):
+            return Generate([0, 1, 2, 3])
 
         def is_final_state(self, _):
             return True
@@ -157,8 +157,8 @@ def test_sequence_generator_1d_several_iterations():
         def next_state(self, state, next_token_ids):
             return FSMState(state + 1)
 
-        def allowed_token_ids(self, _):
-            return [0, 1, 2, 3]
+        def get_next_instruction(self, _):
+            return Generate([0, 1, 2, 3])
 
         def is_final_state(self, state):
             if state < 2:
@@ -207,8 +207,8 @@ def test_sequence_generator_2d_single_iteration():
         def next_state(self, state, next_token_ids):
             return 0
 
-        def allowed_token_ids(self, _):
-            return [0, 1, 2, 3]
+        def get_next_instruction(self, _):
+            return Generate([0, 1, 2, 3])
 
         def is_final_state(self, _):
             return True
@@ -261,8 +261,8 @@ def test_sequence_generator_2d_several_iterations():
         def next_state(self, state, next_token_ids):
             return FSMState(state + 1)
 
-        def allowed_token_ids(self, _):
-            return [0, 1, 2, 3]
+        def get_next_instruction(self, _):
+            return Generate([0, 1, 2, 3])
 
         def is_final_state(self, state):
             if state < 2:
@@ -412,15 +412,15 @@ def test_get_next_fsm_states():
     assert result == [0, 0]
 
 
-def test_get_allowed_token_idss():
+def test_get_allowed_token_ids():
     class MockFSM:
-        def allowed_token_ids(self, _):
-            return [1, 2, 3, 4]
+        def get_next_instruction(self, _):
+            return Generate([0, 1, 2, 3])
 
-    result = get_allowed_tokens([MockFSM()], [0])
+    result = get_allowed_token_ids([MockFSM()], [0])
     assert result == [[1, 2, 3, 4]]
 
-    result = get_allowed_tokens([MockFSM(), MockFSM()], [0, 1])
+    result = get_allowed_token_ids([MockFSM(), MockFSM()], [0, 1])
     assert result == [[1, 2, 3, 4], [1, 2, 3, 4]]
 
 
