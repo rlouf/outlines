@@ -111,7 +111,6 @@ module = [
     "exllamav2.*",
     "jinja2",
     "jsonschema.*",
-    "openai.*",
     "mamba_ssm.*",
     "mlx_lm.*",
     "mlx.*",
