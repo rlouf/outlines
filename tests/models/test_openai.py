@@ -1,5 +1,6 @@
 import pytest
 from pydantic import BaseModel
+from typing_extensions import TypedDict
 
 from outlines.models.openai import JSON, OpenAI
 
@@ -25,10 +26,22 @@ def test_openai_simple_call():
 
 
 @pytest.mark.api_call
-def test_openai_simple_structured_call():
+def test_openai_simple_pydantic():
     model = OpenAI(MODEL_NAME)
 
     class Foo(BaseModel):
+        bar: int
+
+    result = model("foo?", JSON(Foo))
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.xfail(reason="The OpenAI SDK does not support TypedDict as inputs.")
+@pytest.mark.api_call
+def test_openai_simple_typed_dict():
+    model = OpenAI(MODEL_NAME)
+
+    class Foo(TypedDict):
         bar: int
 
     result = model("foo?", JSON(Foo))
