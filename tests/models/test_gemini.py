@@ -1,3 +1,5 @@
+from enum import Enum
+
 import pytest
 from pydantic import BaseModel
 
@@ -33,3 +35,16 @@ def test_gemini_simple_pydantic():
 
     result = model("foo?", JSON(Foo))
     assert isinstance(result, BaseModel)
+
+
+@pytest.mark.api_call
+def test_gemini_simple_enum():
+    model = Gemini(MODEL_NAME)
+
+    class Foo(Enum):
+        bar = "Bar"
+        foor = "Foo"
+
+    result = model("foo?", Foo)
+    assert isinstance(result, str)
+    assert result == "Foo" or result == "Bar"

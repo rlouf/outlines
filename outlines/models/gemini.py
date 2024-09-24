@@ -1,8 +1,8 @@
 """Integration with Gemini's API."""
 import json
 from dataclasses import dataclass
-from enum import Enum
-from typing import List, Optional, Union
+from enum import EnumMeta
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -23,7 +23,7 @@ class Gemini:
     def __call__(
         self,
         prompt: str,
-        output_type: Optional[Union[JSON, Enum, List]] = None,
+        output_type: Optional[Union[JSON, EnumMeta]] = None,
         **inference_kwargs,
     ):
         import google.generativeai as genai
@@ -33,6 +33,11 @@ class Gemini:
             generation_config = genai.GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=output_type.definition,
+            )
+        elif isinstance(output_type, EnumMeta):
+            generation_config = genai.GenerationConfig(
+                response_mime_type="text/x.enum",
+                response_schema=output_type,
             )
 
         completion = self.client.generate_content(
