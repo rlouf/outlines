@@ -1,8 +1,9 @@
 import pytest
+from pydantic import BaseModel
 
-from outlines.models.openai import OpenAI
+from outlines.models.openai import JSON, OpenAI
 
-MODEL_NAME = "gpt-4o"
+MODEL_NAME = "gpt-4o-mini-2024-07-18"
 
 
 def test_openai_wrong_init_parameters():
@@ -21,3 +22,14 @@ def test_openai_simple_call():
     model = OpenAI(MODEL_NAME)
     result = model("Respond with one word. Not more.")
     assert isinstance(result, str)
+
+
+@pytest.mark.api_call
+def test_openai_simple_structured_call():
+    model = OpenAI(MODEL_NAME)
+
+    class Foo(BaseModel):
+        bar: int
+
+    result = model("foo?", JSON(Foo))
+    assert isinstance(result, BaseModel)

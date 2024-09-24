@@ -133,6 +133,7 @@ module = [
     "interegular.*",
     "datasets.*",
     "numba.*",
+    "openai.*",
     "requests.*",
     "responses.*",
     "vllm.*",
