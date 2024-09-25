@@ -1,26 +1,26 @@
-"""Integration with OpenAI's API."""
+"""Integration with OpenAI's async API."""
 from typing import Optional
 
 from pydantic import BaseModel
 
-__all__ = ["OpenAI"]
+__all__ = ["AsyncOpenAI"]
 
 
-class OpenAI:
+class AsyncOpenAI:
     def __init__(self, model_name: str, *args, **kwargs):
-        from openai import OpenAI
+        from openai import AsyncOpenAI
 
-        self.client = OpenAI(*args, **kwargs)
+        self.client = AsyncOpenAI(*args, **kwargs)
         self.model_name = model_name
 
-    def __call__(
+    async def __call__(
         self,
         prompt: str,
         output_type: Optional[type[BaseModel]] = None,
         **inference_kwargs,
     ):
         if isinstance(output_type, type(BaseModel)):
-            return call_structured_outputs_api(
+            return await call_structured_outputs_api(
                 self.client,
                 self.model_name,
                 prompt,
@@ -28,13 +28,15 @@ class OpenAI:
                 **inference_kwargs,
             )
         else:
-            return call_api(self.client, self.model_name, prompt, **inference_kwargs)
+            return await call_api(
+                self.client, self.model_name, prompt, **inference_kwargs
+            )
 
 
-def call_structured_outputs_api(
+async def call_structured_outputs_api(
     client, model_name, prompt, response_format, **inference_kwargs
 ):
-    completion = client.beta.chat.completions.parse(
+    completion = await client.beta.chat.completions.parse(
         model=model_name,
         messages=[
             {
@@ -48,8 +50,8 @@ def call_structured_outputs_api(
     return completion.choices[0].message.parsed
 
 
-def call_api(client, model_name, prompt, **inference_kwargs):
-    completion = client.chat.completions.create(
+async def call_api(client, model_name, prompt, **inference_kwargs):
+    completion = await client.chat.completions.create(
         model=model_name,
         messages=[
             {

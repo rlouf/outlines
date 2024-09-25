@@ -2,7 +2,8 @@ import pytest
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from outlines.models.openai import JSON, OpenAI
+from outlines.models.asyncio.openai import AsyncOpenAI
+from outlines.models.openai import OpenAI
 
 MODEL_NAME = "gpt-4o-mini-2024-07-18"
 
@@ -12,10 +13,22 @@ def test_openai_wrong_init_parameters():
         OpenAI(MODEL_NAME, foo=10)
 
 
+def test_async_openai_wrong_init_parameters():
+    with pytest.raises(TypeError, match="got an unexpected"):
+        AsyncOpenAI(MODEL_NAME, foo=10)
+
+
 def test_openai_wrong_inference_parameters():
     with pytest.raises(TypeError, match="got an unexpected"):
         model = OpenAI(MODEL_NAME)
         model("prompt", foo=10)
+
+
+@pytest.mark.asyncio
+async def test_async_openai_wrong_inference_parameters():
+    with pytest.raises(TypeError, match="got an unexpected"):
+        model = AsyncOpenAI(MODEL_NAME)
+        await model("prompt", foo=10)
 
 
 @pytest.mark.api_call
@@ -26,13 +39,33 @@ def test_openai_simple_call():
 
 
 @pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_call():
+    model = AsyncOpenAI(MODEL_NAME)
+    result = await model("Respond with one word. Not more.")
+    assert isinstance(result, str)
+
+
+@pytest.mark.api_call
 def test_openai_simple_pydantic():
     model = OpenAI(MODEL_NAME)
 
     class Foo(BaseModel):
         bar: int
 
-    result = model("foo?", JSON(Foo))
+    result = model("foo?", Foo)
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_pydantic():
+    model = AsyncOpenAI(MODEL_NAME)
+
+    class Foo(BaseModel):
+        bar: int
+
+    result = await model("foo?", Foo)
     assert isinstance(result, BaseModel)
 
 
@@ -44,5 +77,18 @@ def test_openai_simple_typed_dict():
     class Foo(TypedDict):
         bar: int
 
-    result = model("foo?", JSON(Foo))
+    result = model("foo?", Foo)
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.xfail(reason="The OpenAI SDK does not support TypedDict as inputs.")
+@pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_typed_dict():
+    model = AsyncOpenAI(MODEL_NAME)
+
+    class Foo(TypedDict):
+        bar: int
+
+    result = await model("foo?", Foo)
     assert isinstance(result, BaseModel)
