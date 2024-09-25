@@ -1,4 +1,5 @@
 """Integration with OpenAI's async API."""
+import json
 from typing import Optional
 
 from pydantic import BaseModel
@@ -20,13 +21,37 @@ class AsyncOpenAI:
         **inference_kwargs,
     ):
         if isinstance(output_type, type(BaseModel)):
-            return await call_structured_outputs_api(
+            result = await call_structured_outputs_api(
                 self.client,
                 self.model_name,
                 prompt,
                 output_type,
                 **inference_kwargs,
             )
+            return result.parsed
+        elif isinstance(output_type, str):
+            output_type = json.loads(output_type)
+
+            # OpenAI requires `additionalProperties` to be set
+            if "additionalProperties" not in output_type:
+                output_type["additionalProperties"] = False
+
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "default",
+                    "strict": True,
+                    "schema": output_type,
+                },
+            }
+            result = await call_structured_outputs_api(
+                self.client,
+                self.model_name,
+                prompt,
+                response_format,
+                **inference_kwargs,
+            )
+            return result.content
         else:
             return await call_api(
                 self.client, self.model_name, prompt, **inference_kwargs
@@ -47,7 +72,7 @@ async def call_structured_outputs_api(
         response_format=response_format,
         **inference_kwargs,
     )
-    return completion.choices[0].message.parsed
+    return completion.choices[0].message
 
 
 async def call_api(client, model_name, prompt, **inference_kwargs):

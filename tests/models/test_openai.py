@@ -1,3 +1,6 @@
+import json
+from dataclasses import dataclass
+
 import pytest
 from pydantic import BaseModel
 from typing_extensions import TypedDict
@@ -69,6 +72,35 @@ async def test_async_openai_simple_pydantic():
     assert isinstance(result, BaseModel)
 
 
+@pytest.mark.api_call
+def test_openai_simple_json_schema():
+    model = OpenAI(MODEL_NAME)
+
+    class Foo(BaseModel):
+        bar: int
+
+    schema = json.dumps(Foo.model_json_schema())
+
+    result = model("foo?", schema)
+    assert isinstance(result, str)
+    json.loads(result)
+
+
+@pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_json_schema():
+    model = AsyncOpenAI(MODEL_NAME)
+
+    class Foo(BaseModel):
+        bar: int
+
+    schema = json.dumps(Foo.model_json_schema())
+
+    result = await model("foo?", schema)
+    assert isinstance(result, str)
+    json.loads(result)
+
+
 @pytest.mark.xfail(reason="The OpenAI SDK does not support TypedDict as inputs.")
 @pytest.mark.api_call
 def test_openai_simple_typed_dict():
@@ -88,6 +120,33 @@ async def test_async_openai_simple_typed_dict():
     model = AsyncOpenAI(MODEL_NAME)
 
     class Foo(TypedDict):
+        bar: int
+
+    result = await model("foo?", Foo)
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.xfail(reason="The OpenAI SDK does not support dataclasses as inputs.")
+@pytest.mark.api_call
+def test_openai_simple_dataclass():
+    model = OpenAI(MODEL_NAME)
+
+    @dataclass
+    class Foo:
+        bar: int
+
+    result = model("foo?", Foo)
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.xfail(reason="The OpenAI SDK does not support dataclass as inputs.")
+@pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_dataclass():
+    model = AsyncOpenAI(MODEL_NAME)
+
+    @dataclass
+    class Foo:
         bar: int
 
     result = await model("foo?", Foo)

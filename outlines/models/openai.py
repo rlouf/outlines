@@ -1,5 +1,6 @@
 """Integration with OpenAI's API."""
-from typing import Optional
+import json
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -16,17 +17,41 @@ class OpenAI:
     def __call__(
         self,
         prompt: str,
-        output_type: Optional[type[BaseModel]] = None,
+        output_type: Optional[Union[type[BaseModel], str]] = None,
         **inference_kwargs,
     ):
         if isinstance(output_type, type(BaseModel)):
-            return call_structured_outputs_api(
+            result = call_structured_outputs_api(
                 self.client,
                 self.model_name,
                 prompt,
                 output_type,
                 **inference_kwargs,
             )
+            return result.parsed
+        elif isinstance(output_type, str):
+            output_type = json.loads(output_type)
+
+            # OpenAI requires `additionalProperties` to be set
+            if "additionalProperties" not in output_type:
+                output_type["additionalProperties"] = False
+
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "default",
+                    "strict": True,
+                    "schema": output_type,
+                },
+            }
+            result = call_structured_outputs_api(
+                self.client,
+                self.model_name,
+                prompt,
+                response_format,
+                **inference_kwargs,
+            )
+            return result.content
         else:
             return call_api(self.client, self.model_name, prompt, **inference_kwargs)
 
@@ -45,7 +70,7 @@ def call_structured_outputs_api(
         response_format=response_format,
         **inference_kwargs,
     )
-    return completion.choices[0].message.parsed
+    return completion.choices[0].message
 
 
 def call_api(client, model_name, prompt, **inference_kwargs):
