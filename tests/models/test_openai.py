@@ -1,12 +1,15 @@
+import io
 import json
 from dataclasses import dataclass
 
+import PIL
 import pytest
+import requests
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
 from outlines.models.asyncio.openai import AsyncOpenAI
-from outlines.models.openai import OpenAI
+from outlines.models.openai import OpenAI, Vision
 
 MODEL_NAME = "gpt-4o-mini-2024-07-18"
 
@@ -50,6 +53,33 @@ async def test_async_openai_simple_call():
 
 
 @pytest.mark.api_call
+def test_openai_simple_vision():
+    model = OpenAI(MODEL_NAME)
+
+    url = "https://raw.githubusercontent.com/dottxt-ai/outlines/refs/heads/main/docs/assets/images/logo.png"
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        image = PIL.Image.open(io.BytesIO(r.content))
+
+    result = model(Vision("What does this logo represent?", image))
+    assert isinstance(result, str)
+
+
+@pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_vision():
+    model = AsyncOpenAI(MODEL_NAME)
+
+    url = "https://raw.githubusercontent.com/dottxt-ai/outlines/refs/heads/main/docs/assets/images/logo.png"
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        image = PIL.Image.open(io.BytesIO(r.content))
+
+    result = await model(Vision("What does this logo represent?", image))
+    assert isinstance(result, str)
+
+
+@pytest.mark.api_call
 def test_openai_simple_pydantic():
     model = OpenAI(MODEL_NAME)
 
@@ -69,6 +99,39 @@ async def test_async_openai_simple_pydantic():
         bar: int
 
     result = await model("foo?", Foo)
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.api_call
+def test_openai_simple_vision_pydantic():
+    model = OpenAI(MODEL_NAME)
+
+    url = "https://raw.githubusercontent.com/dottxt-ai/outlines/refs/heads/main/docs/assets/images/logo.png"
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        image = PIL.Image.open(io.BytesIO(r.content))
+
+    class Logo(BaseModel):
+        name: int
+
+    result = model(Vision("What does this logo represent?", image), Logo)
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.api_call
+@pytest.mark.asyncio
+async def test_async_openai_simple_vision_pydantic():
+    model = AsyncOpenAI(MODEL_NAME)
+
+    url = "https://raw.githubusercontent.com/dottxt-ai/outlines/refs/heads/main/docs/assets/images/logo.png"
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        image = PIL.Image.open(io.BytesIO(r.content))
+
+    class Logo(BaseModel):
+        name: int
+
+    result = await model(Vision("What does this logo represent?", image), Logo)
     assert isinstance(result, BaseModel)
 
 

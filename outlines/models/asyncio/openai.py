@@ -1,8 +1,12 @@
 """Integration with OpenAI's async API."""
+import base64
 import json
-from typing import Optional
+from io import BytesIO
+from typing import Optional, Union
 
 from pydantic import BaseModel
+
+from outlines.models.openai import Vision
 
 __all__ = ["AsyncOpenAI"]
 
@@ -16,7 +20,7 @@ class AsyncOpenAI:
 
     async def __call__(
         self,
-        prompt: str,
+        input: Union[str, Vision],
         output_type: Optional[type[BaseModel]] = None,
         **inference_kwargs,
     ):
@@ -24,7 +28,7 @@ class AsyncOpenAI:
             result = await call_structured_outputs_api(
                 self.client,
                 self.model_name,
-                prompt,
+                input,
                 output_type,
                 **inference_kwargs,
             )
@@ -47,26 +51,46 @@ class AsyncOpenAI:
             result = await call_structured_outputs_api(
                 self.client,
                 self.model_name,
-                prompt,
+                input,
                 response_format,
                 **inference_kwargs,
             )
             return result.content
         else:
             return await call_api(
-                self.client, self.model_name, prompt, **inference_kwargs
+                self.client, self.model_name, input, **inference_kwargs
             )
 
 
 async def call_structured_outputs_api(
-    client, model_name, prompt, response_format, **inference_kwargs
+    client,
+    model_name,
+    input: Union[str, Vision],
+    response_format,
+    **inference_kwargs,
 ):
+    if isinstance(input, Vision):
+        image = input.image
+        buffer = BytesIO()
+        image.save(buffer, format=image.format)
+        image_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        image_format = f"image/{image.format.lower()}"
+        content = [
+            {"type": "text", "text": input.prompt},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{image_format};base64,{image_str}"},
+            },
+        ]
+    else:
+        content = input
+
     completion = await client.beta.chat.completions.parse(
         model=model_name,
         messages=[
             {
                 "role": "user",
-                "content": prompt,
+                "content": content,
             }
         ],
         response_format=response_format,
@@ -75,13 +99,29 @@ async def call_structured_outputs_api(
     return completion.choices[0].message
 
 
-async def call_api(client, model_name, prompt, **inference_kwargs):
+async def call_api(client, model_name, input: Union[str, Vision], **inference_kwargs):
+    if isinstance(input, Vision):
+        image = input.image
+        buffer = BytesIO()
+        image.save(buffer, format=image.format)
+        image_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        image_format = f"image/{image.format.lower()}"
+        content = [
+            {"type": "text", "text": input.prompt},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{image_format};base64,{image_str}"},
+            },
+        ]
+    else:
+        content = input
+
     completion = await client.chat.completions.create(
         model=model_name,
         messages=[
             {
                 "role": "user",
-                "content": prompt,
+                "content": content,
             }
         ],
         **inference_kwargs,
