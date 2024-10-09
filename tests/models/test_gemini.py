@@ -1,10 +1,13 @@
+import io
 from enum import Enum
 
+import PIL
 import pytest
+import requests
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from outlines.models.gemini import JSON, Gemini
+from outlines.models.gemini import JSON, Gemini, Vision
 
 MODEL_NAME = "gemini-1.5-flash-latest"
 
@@ -28,6 +31,19 @@ def test_gemini_simple_call():
 
 
 @pytest.mark.api_call
+def test_gemini_simple_vision():
+    model = Gemini(MODEL_NAME)
+
+    url = "https://raw.githubusercontent.com/dottxt-ai/outlines/refs/heads/main/docs/assets/images/logo.png"
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        image = PIL.Image.open(io.BytesIO(r.content))
+
+    result = model(Vision("What does this logo represent?", image))
+    assert isinstance(result, str)
+
+
+@pytest.mark.api_call
 def test_gemini_simple_pydantic():
     model = Gemini(MODEL_NAME)
 
@@ -35,6 +51,23 @@ def test_gemini_simple_pydantic():
         bar: int
 
     result = model("foo?", JSON(Foo))
+    assert isinstance(result, BaseModel)
+
+
+@pytest.mark.xfail(reason="Vision models do not work with structured outputs.")
+@pytest.mark.api_call
+def test_gemini_simple_vision_pydantic():
+    model = Gemini(MODEL_NAME)
+
+    url = "https://raw.githubusercontent.com/dottxt-ai/outlines/refs/heads/main/docs/assets/images/logo.png"
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        image = PIL.Image.open(io.BytesIO(r.content))
+
+    class Logo(BaseModel):
+        name: int
+
+    result = model(Vision("What does this logo represent?", image), Logo)
     assert isinstance(result, BaseModel)
 
 

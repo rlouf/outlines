@@ -8,6 +8,8 @@ from typing import Optional, Union
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
+from .openai import Vision
+
 __all__ = ["Gemini"]
 
 
@@ -24,7 +26,7 @@ class Gemini:
 
     def __call__(
         self,
-        prompt: str,
+        prompt: Union[str, Vision],
         output_type: Optional[Union[JSON, EnumMeta]] = None,
         **inference_kwargs,
     ):
@@ -53,6 +55,9 @@ class Gemini:
                 raise TypeError(
                     "The Gemini API only supports List types with JSON types."
                 )
+
+        if isinstance(prompt, Vision):
+            prompt = [prompt.prompt, prompt.image]
 
         completion = self.client.generate_content(
             prompt, generation_config=generation_config, **inference_kwargs
