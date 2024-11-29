@@ -7,7 +7,7 @@ from typing import Optional, Union
 from pydantic import BaseModel
 from typing_extensions import _TypedDictMeta  # type: ignore
 
-from outlines.prompts import Vision
+from outlines.templates import Vision
 from outlines.types import Choice, Json, List
 
 __all__ = ["Gemini"]
