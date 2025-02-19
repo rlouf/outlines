@@ -15,11 +15,11 @@ from .gemini import Gemini
 from .llamacpp import LlamaCpp
 from .mlxlm import MLXLM, mlxlm
 from .openai import AzureOpenAI, OpenAI
-from .transformers import Transformers, TransformerTokenizer, mamba, transformers
-from .transformers_vision import TransformersVision, transformers_vision
+from .transformers import Mamba, Transformers, TransformerTokenizer
+from .transformers_vision import TransformersVision
 from .vllm import VLLM, vllm
 
 LogitsGenerator = Union[Transformers, LlamaCpp, OpenAI, ExLlamaV2Model, MLXLM, VLLM]
 
-LocalModel = LlamaCpp
+LocalModel = Union[LlamaCpp, Transformers]
 APIModel = Union[AzureOpenAI, OpenAI, Anthropic, Gemini]
