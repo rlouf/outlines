@@ -62,7 +62,7 @@ isbn = Regex(
 
 
 @dataclass
-class Json:
+class JsonType:
     """Represents a JSON object.
 
     The structure of JSON object can be defined using a JSON Schema
@@ -76,7 +76,7 @@ class Json:
 
     """
 
-    definition: Union[str, dict]
+    definition: Union[str, dict, type[BaseModel]]
     whitespace_pattern: str = " "
 
     def to_json_schema(self):
