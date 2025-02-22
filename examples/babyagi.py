@@ -9,12 +9,13 @@ from collections import deque
 from typing import Deque, List
 
 import outlines
-import outlines.models as models
 from outlines import Template
 
+from openai import OpenAI
 
-model = models.openai("gpt-4o-mini")
-complete = outlines.generate.text(model)
+
+model = outlines.from_openai(OpenAI(), "gpt-4o-mini")
+complete = outlines.Generator(model)
 
 ## Load the prompts
 perform_task_ppt = Template.from_file("prompts/babyagi_perform_task.txt")
