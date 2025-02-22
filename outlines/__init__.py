@@ -24,7 +24,7 @@ from outlines.models import (
 )
 
 
-models = [
+model_list = [
     "from_anthropic",
     "from_gemini",
     "from_llamacpp",
@@ -47,4 +47,4 @@ __all__ = [
     "Template",
     "vectorize",
     "grammars",
-] + models
+] + model_list
