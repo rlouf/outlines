@@ -424,8 +424,14 @@ import outlines
 
 labelling = outlines.Template.from_file("prompt.txt")
 prompt = labelling("Just awesome", examples)
-
 ```
+
+This helps:
+
+- Keep content separate from the code
+- Design "white space perfect" prompts
+
+It is more maintainable and means prompts can be versioned separately from the code.
 
 ## Join us
 

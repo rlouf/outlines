@@ -1,4 +1,5 @@
 """Integration with Anthropic's API."""
+
 from functools import singledispatchmethod
 from typing import Union
 

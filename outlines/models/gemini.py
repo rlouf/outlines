@@ -1,4 +1,5 @@
 """Integration with Gemini's API."""
+
 from enum import EnumMeta
 from functools import singledispatchmethod
 from types import NoneType
