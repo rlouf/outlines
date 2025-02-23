@@ -406,12 +406,26 @@ labelling = outlines.Template.from_file("prompt.txt")
 prompt = labelling("Just awesome", examples)
 ```
 
-This helps:
+You can also load a template from a text file. Assume you have the following prompt template defined in `prompt.txt`:
 
-- Keep content separate from the code
-- Design "white space perfect" prompts
+``` text
+You are a sentiment-labelling assistant.
 
-It is more maintainable and means prompts can be versioned separately from the code.
+{% for example in examples %}
+{{ example[0] }} // {{ example[1] }}
+{% endfor %}
+{{ to_label }} //
+```
+
+You can load it with:
+
+``` python
+import outlines
+
+labelling = outlines.Template.from_file("prompt.txt")
+prompt = labelling("Just awesome", examples)
+
+```
 
 ## Join us
 
