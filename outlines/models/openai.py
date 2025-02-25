@@ -1,11 +1,11 @@
 """Integration with OpenAI's API."""
 
-from functools import singledispatchmethod
+from dataclasses import is_dataclass
 from types import NoneType
 from typing import Optional, Union, TYPE_CHECKING
+from typing_extensions import _TypedDictMeta  # type:ignore
 
-
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from outlines.models.base import Model, ModelTypeAdapter
 from outlines.templates import Vision
@@ -26,7 +26,6 @@ class OpenAITypeAdapter(ModelTypeAdapter):
 
     """
 
-    @singledispatchmethod
     def format_input(self, model_input):
         """Generate the `messages` argument to pass to the client.
 
@@ -36,12 +35,15 @@ class OpenAITypeAdapter(ModelTypeAdapter):
             The input passed by the user.
 
         """
+        if isinstance(model_input, str):
+            return self.format_str_model_input(model_input)
+        elif isinstance(model_input, Vision):
+            return self.format_vision_model_input(model_input)
         raise NotImplementedError(
             f"The input type {input} is not available with OpenAI. The only available types are `str` and `Vision`."
         )
 
-    @format_input.register(str)
-    def format_str_input(self, model_input: str):
+    def format_str_model_input(self, model_input: str):
         """Generate the `messages` argument to pass to the client when the user
         only passes a prompt.
 
@@ -55,8 +57,7 @@ class OpenAITypeAdapter(ModelTypeAdapter):
             ]
         }
 
-    @format_input.register(Vision)
-    def format_vision_input(self, model_input: Vision):
+    def format_vision_model_input(self, model_input: Vision):
         """Generate the `messages` argument to pass to the client when the user
         passes a prompt and an image.
 
@@ -78,31 +79,32 @@ class OpenAITypeAdapter(ModelTypeAdapter):
             ]
         }
 
-    @singledispatchmethod
     def format_output_type(self, output_type):
         """Generate the `response_format` argument to the client based on the
         output type specified by the user.
 
         """
-        raise NotImplementedError(
-            f"The type {output_type} is not available with OpenAI. The only output type available is `Json`."
-        )
+        if output_type is None:
+            return {}
+        elif is_dataclass(output_type):
+            output_type = TypeAdapter(self.definition).json_schema()
+            return self.format_json_output_type(output_type)
+        elif isinstance(output_type, _TypedDictMeta):
+            output_type = TypeAdapter(self.definition).json_schema()
+            return self.format_json_output_type(output_type)
+        elif isinstance(output_type, type(BaseModel)):
+            output_type = output_type.model_json_schema()
+            return self.format_json_output_type(output_type)
+        else:
+            raise NotImplementedError(
+                f"The type {output_type} is not available with OpenAI. The only output type available is `Json`."
+            )
 
-    @format_output_type.register(NoneType)
-    def format_none_output_type(self, _: None):
-        """Generate the `response_format` argument to the client when no
-        output type is specified by the user.
-
-        """
-        return {}
-
-    @format_output_type.register(JsonType)
-    def format_json_output_type(self, output_type: JsonType):
+    def format_json_output_type(self, schema: dict):
         """Generate the `response_format` argument to the client when the user
         specified a `Json` output type.
 
         """
-        schema = output_type.to_json_schema()
 
         # OpenAI requires `additionalProperties` to be set
         if "additionalProperties" not in schema:
