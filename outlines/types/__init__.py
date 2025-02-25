@@ -12,6 +12,7 @@ from typing_extensions import _TypedDictMeta  # type: ignore
 from . import airports, countries, locale
 from outlines.types.dsl import (
     Regex,
+    JsonSchema,
     json_schema,
     regex,
     either,
@@ -145,3 +146,6 @@ class CFG:
     """Represents a Context-Free Grammar as a string."""
 
     definition: str
+
+
+cfg = CFG
