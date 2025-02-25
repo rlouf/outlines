@@ -152,7 +152,7 @@ class Gemini(Model):
     def generate_stream(
         self,
         model_input: Union[str, Vision],
-        output_type: Optional[Union[JsonType, Choice, List]] = None,
+        output_type: Optional[Any] = None,
         **inference_kwargs,
     ):
         import google.generativeai as genai
