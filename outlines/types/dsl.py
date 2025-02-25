@@ -1,9 +1,14 @@
+from dataclasses import is_dataclass
+import datetime
+from enum import EnumMeta
 import json as json
 import re
 from dataclasses import dataclass
-from typing import Any, List, Union
+from typing import Any, List, Union, get_origin, Literal, get_args
+from typing_extensions import _TypedDictMeta  # type: ignore
+import outlines.types as types
 
-from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler, TypeAdapter
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema as cs
 from outlines_core.fsm.json_schema import build_regex_from_schema
@@ -355,6 +360,54 @@ def regex(pattern: str):
 
 def json_schema(schema: Union[str, dict, type[BaseModel]]):
     return JsonSchema(schema)
+
+
+def python_types_to_dsl(ptype: Any) -> Term:
+    if isinstance(ptype, Term):
+        return ptype
+    elif get_origin(ptype) is int:
+        return types.integer
+    elif get_origin(ptype) is float:
+        return types.number
+    elif get_origin(ptype) is bool:
+        return types.boolean
+    elif get_origin(ptype) is str:
+        return String(ptype)
+    elif isinstance(ptype, datetime.time):
+        return types.time
+    elif isinstance(ptype, datetime.date):
+        return types.date
+    elif isinstance(ptype, datetime.datetime):
+        return types.datetime
+    elif is_dataclass(ptype):
+        ptype = TypeAdapter(ptype).json_schema()
+        return JsonSchema(ptype)
+    elif isinstance(ptype, _TypedDictMeta):
+        ptype = TypeAdapter(ptype).json_schema()
+        return JsonSchema(ptype)
+    elif isinstance(ptype, type(BaseModel)):
+        ptype = TypeAdapter(ptype).json_schema()
+        return JsonSchema(ptype)
+    elif isinstance(ptype, EnumMeta):
+        return Alternatives([python_types_to_dsl(arg.value) for arg in ptype])  # type: ignore
+    elif get_origin(ptype) is Literal:
+        return Alternatives([python_types_to_dsl(arg) for arg in get_args(ptype)])
+    elif get_origin(ptype) is Union:
+        return Alternatives([python_types_to_dsl(arg) for arg in get_args(ptype)])
+    elif get_origin(ptype) is list:
+        args = get_args(ptype)
+        if len(args) > 1:
+            raise TypeError(
+                "Open source models only support `list` types with a single argument "
+                f"for now. Got {ptype} instead. Please open an issue specifying the "
+                "output type you are trying to enforce."
+            )
+        return "[" + python_types_to_dsl(args[0]) + KleeneStar("," + python_types_to_dsl(args[0]))+ "]"
+    else:
+        raise TypeError(
+            f"Type {getattr(ptype, '__name__', ptype)} is not currently supported by Outlines. "
+            "Please open an issue specifying the output type you are trying to enforce."
+        )
 
 
 def to_regex(term: Term) -> str:
