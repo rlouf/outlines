@@ -76,7 +76,11 @@ class GeminiTypeAdapter(ModelTypeAdapter):
             return self.format_json_output_type(output_type)
         elif isinstance(output_type, type(BaseModel)):
             return self.format_json_output_type(output_type)
-        if isinstance(output_type, EnumMeta):  # Enum types
+        # json schema as a dict is accepted but the title keyword is not supported ?!
+        # another restriction: the dict cannot be put in a list
+        elif isinstance(output_type, dict):
+            return self.format_json_output_type(output_type)
+        elif isinstance(output_type, EnumMeta):  # Enum types
             return self.format_enum_output_type(output_type)
         elif get_origin(output_type) is Literal:
             out = Enum("EnumFromLiteral", [(arg, arg) for arg in get_args(output_type)])
@@ -118,6 +122,12 @@ class GeminiTypeAdapter(ModelTypeAdapter):
                     "response_mime_type": "application/json",
                     "response_schema": output_type,
                 }
+
+            elif isinstance(item_type, dict):
+                raise TypeError(
+                    "JSON schema dict output type is not supported with lists. "
+                    "Use a Pydantic model, typed dict or dataclass instead."
+                )
 
         raise TypeError(
             f"Gemini only supports homogenous lists: list[BaseModel], list[TypedDict] or list[dataclass]. "
