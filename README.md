@@ -1,6 +1,7 @@
 <div align="center" style="margin-bottom: 1em;">
 
-<img src="./docs/assets/images/logo.png" alt="Outlines Logo" width=500></img>
+<img src="./docs/assets/images/logo-white-mode.png#gh-light-mode-only" alt="Outlines Logo" width=500></img>
+<img src="./docs/assets/images/logo-dark-mode.png#gh-dark-mode-only" alt="Outlines Logo" width=500></img>
 
 
  🗒️ *Make LLMs speak the language of every application.* 🗒️
