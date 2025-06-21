@@ -122,6 +122,7 @@ nav:
           - Migrating to v1: guide/migration.md
           - Work with Instruct Models: guide/chat_templating.md
           - Dynamic JSON schemas: guide/dynamic_schema_extraction.md
+          - Beyond JSON: guide/regex_dsl_structured_generation.md
           - Deploying with FastAPI: guide/fastapi_vllm_deployment.md
           - Build a CLI tool with Ollama: guide/ollama_cli_tool.md
 
