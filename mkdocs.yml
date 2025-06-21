@@ -120,8 +120,9 @@ nav:
           - Getting Started: guide/getting_started.md
           - Installation: guide/installation.md
           - Migrating to v1: guide/migration.md
+          - Work with Instruct Models: guide/chat_templating.md
+          - Dynamic JSON schemas: guide/dynamic_schema_extraction.md
           - Deploying with FastAPI: guide/fastapi_vllm_deployment.md
-          - Chat Templating for Instruct Models: guide/chat_templating.md
 
     - Features:
           - Overview: features/index.md
