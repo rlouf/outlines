@@ -123,6 +123,7 @@ nav:
           - Work with Instruct Models: guide/chat_templating.md
           - Dynamic JSON schemas: guide/dynamic_schema_extraction.md
           - Deploying with FastAPI: guide/fastapi_vllm_deployment.md
+          - Build a CLI tool with Ollama: guide/ollama_cli_tool.md
 
     - Features:
           - Overview: features/index.md
